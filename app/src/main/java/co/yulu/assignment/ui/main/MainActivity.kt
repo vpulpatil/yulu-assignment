@@ -1,9 +1,10 @@
-package co.yulu.assignment
+package co.yulu.assignment.ui.main
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import co.yulu.assignment.R
+import co.yulu.assignment.application.base.BaseActivity
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
