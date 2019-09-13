@@ -9,10 +9,16 @@ import android.os.Bundle
 import android.util.Log
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import butterknife.BindView
+import butterknife.ButterKnife
 import co.yulu.assignment.R
 import co.yulu.assignment.application.base.BaseActivity
 import co.yulu.assignment.di.ViewModelProviderFactory
 import co.yulu.assignment.network.handler.Status
+import co.yulu.assignment.network.responsehandlers.suggestedplaces.Item
+import co.yulu.assignment.ui.main.adapter.NearbyPlacesAdapter
 import co.yulu.assignment.util.UIUtil
 import co.yulu.assignment.util.location.LocationUtil
 import co.yulu.assignment.util.permission.LOCATION_PERMISSION_REQUEST_CODE
@@ -22,14 +28,22 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.LatLngBounds
 import javax.inject.Inject
+import com.google.android.gms.maps.model.MarkerOptions
 
 class MainActivity : BaseActivity(), OnMapReadyCallback {
 
     private val TAG = "MainActivity"
 
+    private val BENGALURU_LAT_LNG = LatLng(12.972227, 77.593961)
+
     @Inject
     internal lateinit var viewModelProviderFactory: ViewModelProviderFactory
+
+    @BindView(R.id.nearbyPlacesRV)
+    lateinit var nearbyPlacesRV: RecyclerView
 
     private val mainViewModel: MainViewModel
         get() {
@@ -43,6 +57,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        ButterKnife.bind(this)
         if (PermissionUtil.isPermissionGranted(this,
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))) {
             initMap()
@@ -61,8 +76,8 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
 
             override fun onLocationChanged(location: Location?) {
                 super.onLocationChanged(location)
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(location!!.latitude, location.longitude), 15.2f))
-                mainViewModel.getNearbyPlaces("${location.latitude},${location.longitude}")
+                //mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(location!!.latitude, location.longitude), 15.2f))
+                mainViewModel.exploreNearbyPlaces("${location!!.latitude},${location.longitude}")
                 observeLiveData()
                 stopReceivingLocation()
             }
@@ -73,7 +88,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
 
 
     private fun observeLiveData() {
-        mainViewModel.getLiveData().observe(this, Observer {
+        mainViewModel.getNearbyPlacesLiveData().observe(this, Observer {
             when(it.status) {
                 Status.LOADING -> {
                     Log.d(TAG, "loading")
@@ -81,6 +96,8 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
 
                 Status.SUCCESS -> {
                     Log.d(TAG, "success:${it.data}")
+                    populateOnMaps(it.data!!.items)
+                    populateDataToList(it.data.items)
                 }
 
                 Status.ERROR -> {
@@ -88,6 +105,44 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
                 }
             }
         })
+    }
+
+    private fun populateOnMaps(items: List<Item>) {
+        mMap.clear()
+        val latLngBoundsBuilder = LatLngBounds.builder()
+        for (item in items) {
+            val latLng = LatLng(item.venue.location.lat, item.venue.location.lng)
+            latLngBoundsBuilder.include(latLng)
+            createMarkerOnMap(latLng, item.venue.name)
+        }
+
+        //animate camera to accommodate all locations in the map
+        val padding = 34 * resources.displayMetrics.density
+        mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(latLngBoundsBuilder.build(), padding.toInt()))
+    }
+
+    private fun createMarkerOnMap(latLng: LatLng, placeName: String) {
+        // Creating a marker
+        val markerOptions = MarkerOptions()
+
+        // Setting the position for the marker
+        markerOptions.position(latLng)
+
+        markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.map_marker))
+
+        // Setting the title for the marker.
+        // This will be displayed on taping the marker
+        markerOptions.title(placeName)
+
+        mMap.addMarker(markerOptions)
+    }
+
+    private fun populateDataToList(data: List<Item>?) {
+        val adapter = NearbyPlacesAdapter(data!!, this@MainActivity)
+
+        nearbyPlacesRV.layoutManager = LinearLayoutManager(this)
+
+        nearbyPlacesRV.adapter = adapter
     }
 
 
@@ -102,6 +157,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
      */
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(BENGALURU_LAT_LNG, 14f))
         mMap.isMyLocationEnabled = true
     }
 

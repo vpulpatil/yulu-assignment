@@ -5,6 +5,7 @@ import co.barfi.network.handler.Resource
 import co.yulu.assignment.application.base.BaseViewModel
 import co.yulu.assignment.network.responsehandlers.NearbyPlacesResult
 import co.yulu.assignment.network.responsehandlers.Venue
+import co.yulu.assignment.network.responsehandlers.suggestedplaces.Group
 import com.google.gson.JsonObject
 import javax.inject.Inject
 
@@ -15,12 +16,20 @@ internal constructor() : BaseViewModel() {
     lateinit var mainRepository: MainRepository
 
     private var searchResultsLiveData = MutableLiveData<Resource<List<Venue>>>()
+    private var nearbyPlacesLiveData = MutableLiveData<Resource<Group>>()
 
     internal fun getLiveData() = searchResultsLiveData
+    internal fun getNearbyPlacesLiveData() = nearbyPlacesLiveData
 
     internal fun getNearbyPlaces(latLngString: String) {
         mainRepository.getNearbyPlaces(latLngString).observeForever{
                 userResource -> searchResultsLiveData.postValue(userResource)
+        }
+    }
+
+    internal fun exploreNearbyPlaces(latLngString: String) {
+        mainRepository.exploreNearbyPlaces(latLngString).observeForever {
+            nearbyPlacesLiveData.postValue(it)
         }
     }
 }
