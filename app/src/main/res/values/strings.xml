@@ -2,4 +2,6 @@
     <string name="app_name">Yulu Assignment</string>
     <string name="title_activity_maps">Map</string>
     <string name="count_been_here_text">%1$s people have been here</string>
+    <string name="search_text">Search</string>
+    <string name="search_hint">Search Any Place Around</string>
 </resources>

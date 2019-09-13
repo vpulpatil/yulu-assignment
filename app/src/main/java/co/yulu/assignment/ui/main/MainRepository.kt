@@ -30,7 +30,7 @@ constructor() {
     @Inject
     lateinit var appExecutors: AppExecutors
 
-    fun getNearbyPlaces(latLngString: String): LiveData<Resource<List<Venue>>> {
+    fun getNearbyPlaces(latLngString: String, queryText: String): LiveData<Resource<List<Venue>>> {
         return object : NetworkBoundResource<List<Venue>, NearbyPlacesResult>(appExecutors) {
             override fun parseNetworkResponse(body: NearbyPlacesResult): MutableLiveData<List<Venue>> {
                 val apiResponse = MutableLiveData<List<Venue>>()
@@ -49,7 +49,7 @@ constructor() {
 
             override fun createCall(): LiveData<ApiResponse<NearbyPlacesResult>> {
                 return placesApiService.searchVenues(clientCredentials.clientId,
-                    clientCredentials.clientSecret, clientCredentials.clientVersion, latLngString)
+                    clientCredentials.clientSecret, clientCredentials.clientVersion, latLngString, queryText)
             }
 
             override fun shouldfetchDataFromDbBeforeNetwork(): Boolean {

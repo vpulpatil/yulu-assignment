@@ -21,8 +21,8 @@ internal constructor() : BaseViewModel() {
     internal fun getLiveData() = searchResultsLiveData
     internal fun getNearbyPlacesLiveData() = nearbyPlacesLiveData
 
-    internal fun getNearbyPlaces(latLngString: String) {
-        mainRepository.getNearbyPlaces(latLngString).observeForever{
+    internal fun getNearbyPlaces(latLngString: String, queryText: String) {
+        mainRepository.getNearbyPlaces(latLngString, queryText).observeForever{
                 userResource -> searchResultsLiveData.postValue(userResource)
         }
     }

@@ -2,11 +2,19 @@ package co.yulu.assignment.ui.main
 
 import android.Manifest
 import android.app.Activity
+import android.app.SearchManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager.PERMISSION_GRANTED
+import android.inputmethodservice.InputMethodService
 import android.location.Location
 import android.os.Bundle
 import android.util.Log
+import android.view.Menu
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
+import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -17,8 +25,10 @@ import co.yulu.assignment.R
 import co.yulu.assignment.application.base.BaseActivity
 import co.yulu.assignment.di.ViewModelProviderFactory
 import co.yulu.assignment.network.handler.Status
+import co.yulu.assignment.network.responsehandlers.Venue
 import co.yulu.assignment.network.responsehandlers.suggestedplaces.Item
 import co.yulu.assignment.ui.main.adapter.NearbyPlacesAdapter
+import co.yulu.assignment.ui.main.adapter.QueryResultAdapter
 import co.yulu.assignment.util.UIUtil
 import co.yulu.assignment.util.location.LocationUtil
 import co.yulu.assignment.util.permission.LOCATION_PERMISSION_REQUEST_CODE
@@ -38,6 +48,8 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
     private val TAG = "MainActivity"
 
     private val BENGALURU_LAT_LNG = LatLng(12.972227, 77.593961)
+
+    private lateinit var currentLoction: Location
 
     @Inject
     internal lateinit var viewModelProviderFactory: ViewModelProviderFactory
@@ -68,6 +80,47 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         }
     }
 
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        val menuInflater = menuInflater
+        menuInflater.inflate(R.menu.main_menu, menu)
+
+        val searchItem = menu.findItem(R.id.action_search)
+
+        val searchManager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
+
+        val searchView = searchItem.actionView as SearchView
+        searchView.setSearchableInfo(searchManager.getSearchableInfo(componentName))
+
+        searchView.setOnQueryTextListener(object: SearchView.OnQueryTextListener{
+
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                mMap.clear()
+                hideKeyboard()
+                mainViewModel.getNearbyPlaces("${currentLoction.latitude},${currentLoction.longitude}", query ?: "")
+                mainViewModel.getLiveData().observe(this@MainActivity, Observer {
+                    when(it.status) {
+                        Status.LOADING -> {
+                        }
+                        Status.SUCCESS -> {
+                            populateQueryResultOnMaps(it.data!!)
+                            populateQueryDataToList(it.data)
+                        }
+                        Status.ERROR -> {
+                        }
+                    }
+                })
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                return false
+            }
+
+        })
+
+        return super.onCreateOptionsMenu(menu);
+    }
+
     private fun initMap() {
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?
         mapFragment!!.getMapAsync(this)
@@ -76,8 +129,9 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
 
             override fun onLocationChanged(location: Location?) {
                 super.onLocationChanged(location)
+                currentLoction = location!!
                 //mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(location!!.latitude, location.longitude), 15.2f))
-                mainViewModel.exploreNearbyPlaces("${location!!.latitude},${location.longitude}")
+                mainViewModel.exploreNearbyPlaces("${location.latitude},${location.longitude}")
                 observeLiveData()
                 stopReceivingLocation()
             }
@@ -86,6 +140,16 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         locationUtil.switchOnGPSAndStartReceivingLocation(this@MainActivity)
     }
 
+    private fun hideKeyboard() {
+        val imm = getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
+        //Find the currently focused view, so we can grab the correct window token from it.
+        var view = currentFocus
+        //If no view currently has focus, create a new one, just so we can grab a window token from it
+        if (view == null) {
+            view = View(this)
+        }
+        imm.hideSoftInputFromWindow(view.windowToken, 0);
+}
 
     private fun observeLiveData() {
         mainViewModel.getNearbyPlacesLiveData().observe(this, Observer {
@@ -109,16 +173,48 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
 
     private fun populateOnMaps(items: List<Item>) {
         mMap.clear()
-        val latLngBoundsBuilder = LatLngBounds.builder()
-        for (item in items) {
-            val latLng = LatLng(item.venue.location.lat, item.venue.location.lng)
-            latLngBoundsBuilder.include(latLng)
-            createMarkerOnMap(latLng, item.venue.name)
-        }
+        if (items.isNotEmpty()) {
+            val latLngBoundsBuilder = LatLngBounds.builder()
+            for (item in items) {
+                val latLng = LatLng(item.venue.location.lat, item.venue.location.lng)
+                latLngBoundsBuilder.include(latLng)
+                createMarkerOnMap(latLng, item.venue.name)
+            }
 
-        //animate camera to accommodate all locations in the map
-        val padding = 34 * resources.displayMetrics.density
-        mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(latLngBoundsBuilder.build(), padding.toInt()))
+            //animate camera to accommodate all locations in the map
+            val padding = 34 * resources.displayMetrics.density
+            mMap.animateCamera(
+                CameraUpdateFactory.newLatLngBounds(
+                    latLngBoundsBuilder.build(),
+                    padding.toInt()
+                )
+            )
+        } else {
+            UIUtil.showShortToast(this@MainActivity, "No Results with the query")
+        }
+    }
+
+    private fun populateQueryResultOnMaps(items: List<Venue>) {
+        mMap.clear()
+        if (items.isNotEmpty()) {
+            val latLngBoundsBuilder = LatLngBounds.builder()
+            for (item in items) {
+                val latLng = LatLng(item.location.lat, item.location.lng)
+                latLngBoundsBuilder.include(latLng)
+                createMarkerOnMap(latLng, item.name)
+            }
+
+            //animate camera to accommodate all locations in the map
+            val padding = 34 * resources.displayMetrics.density
+            mMap.animateCamera(
+                CameraUpdateFactory.newLatLngBounds(
+                    latLngBoundsBuilder.build(),
+                    padding.toInt()
+                )
+            )
+        } else {
+            UIUtil.showShortToast(this@MainActivity, "No Results with the query")
+        }
     }
 
     private fun createMarkerOnMap(latLng: LatLng, placeName: String) {
@@ -139,6 +235,14 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
 
     private fun populateDataToList(data: List<Item>?) {
         val adapter = NearbyPlacesAdapter(data!!, this@MainActivity)
+
+        nearbyPlacesRV.layoutManager = LinearLayoutManager(this)
+
+        nearbyPlacesRV.adapter = adapter
+    }
+
+    private fun populateQueryDataToList(data: List<Venue>?) {
+        val adapter = QueryResultAdapter(data!!, this@MainActivity)
 
         nearbyPlacesRV.layoutManager = LinearLayoutManager(this)
 
@@ -183,6 +287,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
                 initMap()
             } else {
                 UIUtil.showShortToast(this@MainActivity, "Location Permission is not granted, please allow it from Settings")
+                locationUtil.switchOnGPSAndStartReceivingLocation(this@MainActivity)
             }
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)

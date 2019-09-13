@@ -15,7 +15,8 @@ interface PlacesApiService {
         @Query("client_id") clientId: String,
         @Query("client_secret") clientSecret: String,
         @Query("v") clientVersion: String,
-        @Query("ll") latlng: String)
+        @Query("ll") latlng: String,
+        @Query("query") query: String)
             : LiveData<ApiResponse<NearbyPlacesResult>>
 
     @GET("/v2/venues/explore")
