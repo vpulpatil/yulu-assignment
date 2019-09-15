@@ -1,23 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/itemViewParent"
     android:orientation="vertical"
-    android:paddingTop="12dp"
-    android:paddingBottom="12dp"
-    android:paddingStart="12dp"
-    android:paddingEnd="12dp"
+    android:padding="12dp"
     android:clickable="true"
     android:focusable="true"
     android:background="?selectableItemBackground"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
+    <ImageView
+        android:id="@+id/placeIconIV"
+        android:layout_width="@dimen/place_icon_size"
+        android:layout_height="@dimen/place_icon_size"
+        tools:src="@drawable/default_place_icon"
+        android:scaleType="centerCrop"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <TextView
         android:id="@+id/placeNameTV"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/placeIconIV"
+        app:layout_constraintEnd_toStartOf="@+id/distanceAwayTV"
         tools:text="Nagarjuna, Indiranagar, Bengaluru"
+        android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
         android:maxLines="2"
         android:ellipsize="end"
         android:textStyle="bold"
@@ -26,13 +40,67 @@
         android:layout_height="wrap_content" />
 
     <TextView
-        android:id="@+id/beenHereCountTV"
-        android:layout_width="match_parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:layout_marginTop="4dp"
-        android:maxLines="1"
+        android:id="@+id/addressTV"
+        android:layout_width="0dp"
+        app:layout_constraintStart_toEndOf="@+id/placeIconIV"
+        app:layout_constraintEnd_toStartOf="@+id/distanceAwayTV"
+        app:layout_constraintTop_toBottomOf="@+id/placeNameTV"
+        android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
+        android:paddingBottom="2dp"
+        android:maxLines="2"
         android:ellipsize="end"
-        tools:text="9 people have been here"
+        tools:text="100 ft. Road, Indiranagar, Bengaluru"
         android:layout_height="wrap_content" />
 
-</LinearLayout>
+    <TextView
+        android:id="@+id/distanceAwayTV"
+        android:layout_width="60dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:text="4.1 kms away"
+        android:lineSpacingExtra="2dp"
+        android:textSize="15sp"
+        android:gravity="center"
+        android:textColor="@android:color/black"
+        android:textStyle="italic"/>
+
+    <TextView
+        android:id="@+id/isVerifiedPlaceTV"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        tools:text="Unverified Place"
+        android:textSize="12sp"
+        android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
+        android:textColor="@android:color/white"
+        tools:background="@drawable/unverified_bg"
+        android:gravity="center_horizontal"
+        app:layout_constraintTop_toBottomOf="@+id/addressTV"
+        app:layout_constraintStart_toEndOf="@+id/placeIconIV" />
+
+    <TextView
+        android:id="@+id/categoryLabelTV"
+        android:layout_width="wrap_content"
+        android:text="@string/categories_text"
+        app:layout_constraintTop_toBottomOf="@+id/addressTV"
+        app:layout_constraintStart_toEndOf="@+id/isVerifiedPlaceTV"
+        android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
+        android:background="@drawable/category_bg"
+        android:textSize="12sp"
+        android:textColor="@color/categories_textcolor"
+        android:layout_height="wrap_content" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

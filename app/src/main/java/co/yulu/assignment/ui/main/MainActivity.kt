@@ -20,6 +20,7 @@ import androidx.appcompat.widget.SearchView
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import butterknife.BindView
@@ -30,8 +31,7 @@ import co.yulu.assignment.di.ViewModelProviderFactory
 import co.yulu.assignment.network.handler.Status
 import co.yulu.assignment.database.entity.Venue
 import co.yulu.assignment.network.responsehandlers.suggestedplaces.Item
-import co.yulu.assignment.ui.main.adapter.NearbyPlacesAdapter
-import co.yulu.assignment.ui.main.adapter.QueryResultAdapter
+import co.yulu.assignment.ui.main.adapter.PlacesAdapter
 import co.yulu.assignment.util.UIUtil
 import co.yulu.assignment.util.location.LocationUtil
 import co.yulu.assignment.util.permission.LOCATION_PERMISSION_REQUEST_CODE
@@ -93,8 +93,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         ButterKnife.bind(this)
-        initMap()
-        checkLocationPermission()
+        initView()
     }
 
     private fun checkLocationPermission() {
@@ -197,7 +196,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
                             if (filteredVenues.data!!.isNotEmpty()) {
                                 handleStates(SHOW_DATA_STATE)
                                 populateQueryResultOnMaps(filteredVenues.data)
-                                populateQueryDataToList(filteredVenues.data)
+                                setAdapter(filteredVenues.data)
                             } else {
                                 handleStates(NO_DATA_FOUND_STATE)
                             }
@@ -210,12 +209,17 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         }
     }
 
-    private fun initMap() {
+    private fun initView() {
         handleStates(GETTING_LOCATION_STATE)
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?
         mapFragment!!.getMapAsync(this)
 
-        getCurrentLocation()
+        val llm = LinearLayoutManager(this)
+        nearbyPlacesRV.layoutManager = llm
+        val itemDecor = DividerItemDecoration(this@MainActivity, llm.orientation);
+        nearbyPlacesRV.addItemDecoration(itemDecor)
+
+        checkLocationPermission()
     }
 
     private fun getCurrentLocation() {
@@ -225,6 +229,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
                 override fun onLocationChanged(location: Location?) {
                     super.onLocationChanged(location)
                     if (location != null) {
+                        Log.d(TAG, "onLocationChanged")
                         handleStates(GETTING_NEARBY_PLACES_STATE)
                         currentLoction = location
                         //mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(location!!.latitude, location.longitude), 15.2f))
@@ -248,7 +253,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
             view = View(this)
         }
         imm.hideSoftInputFromWindow(view.windowToken, 0);
-}
+    }
 
     private fun observeNearbyPlacesLiveData() {
         mainViewModel.getNearbyPlacesLiveData().observe(this, Observer {
@@ -261,7 +266,11 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
                     handleStates(SHOW_DATA_STATE)
                     Log.d(TAG, "success:${it.data}")
                     populateOnMaps(it.data!!.items)
-                    populateDataToList(it.data.items)
+                    val venues = arrayListOf<Venue>()
+                    for (item in it.data.items) {
+                        venues.add(item.venue)
+                    }
+                    setAdapter(venues)
                 }
 
                 Status.ERROR -> {
@@ -333,19 +342,8 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         mMap.addMarker(markerOptions)
     }
 
-    private fun populateDataToList(data: List<Item>?) {
-        val adapter = NearbyPlacesAdapter(data!!, this@MainActivity)
-
-        nearbyPlacesRV.layoutManager = LinearLayoutManager(this)
-
-        nearbyPlacesRV.adapter = adapter
-    }
-
-    private fun populateQueryDataToList(data: List<Venue>?) {
-        val adapter = QueryResultAdapter(data!!, this@MainActivity)
-
-        nearbyPlacesRV.layoutManager = LinearLayoutManager(this)
-
+    private fun setAdapter(data: List<Venue>) {
+        val adapter = PlacesAdapter(data, this@MainActivity)
         nearbyPlacesRV.adapter = adapter
     }
 
