@@ -14,3 +14,4 @@ This is the assignment that was given by Yulu.
         - type of category of place
    - User can search for keywords through the search button places on the toolbar. 
 3. I have implemented DI using dagger 2, used Room for storing data in local db
+4. Release APK is in app/release/app-release.apk
