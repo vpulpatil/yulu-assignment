@@ -16,4 +16,5 @@
     <string name="categories_text">Categories</string>
     <string name="verified_text">Verified</string>
     <string name="unverified_text">Unverified</string>
+    <string name="no_internet_text">Internet Not Available…</string>
 </resources>

@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.location.Location
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -56,6 +57,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
     val SHOW_DATA_STATE = 2004
     val ERROR_OCCURRED_STATE = 2005
     val SEARCHING_PLACES_STATE = 2006
+    val NO_INTERNET_STATE = 2007
 
     val SETTING_REQUEST_CODE = 1234
 
@@ -155,6 +157,12 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
                 errorTV.visibility = View.VISIBLE
                 errorTV.setText(R.string.error_occurred_text)
             }
+            NO_INTERNET_STATE -> {
+                progressLayoutLL.visibility = View.GONE
+                nearbyPlacesRV.visibility = View.INVISIBLE
+                errorTV.visibility = View.VISIBLE
+                errorTV.setText(R.string.no_internet_text)
+            }
         }
     }
 
@@ -175,7 +183,14 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
                 Log.d(TAG, "onQueryTextSubmit")
                 mMap.clear()
                 hideKeyboard()
-                mainViewModel.getSearchResults("${currentLoction.latitude},${currentLoction.longitude}", query ?: "")
+                if (isNetworkAvailable()) {
+                    mainViewModel.getSearchResults(
+                        "${currentLoction.latitude},${currentLoction.longitude}",
+                        query ?: ""
+                    )
+                } else {
+                    handleStates(NO_INTERNET_STATE)
+                }
                 observeSearchResultsLiveData()
                 return true
             }
@@ -188,6 +203,13 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         })
 
         return super.onCreateOptionsMenu(menu);
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (this::locationUtil.isInitialized) {
+            locationUtil.stopReceivingLocation()
+        }
     }
 
     private fun observeSearchResultsLiveData() {
@@ -225,13 +247,19 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         checkLocationPermission()
     }
 
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val activeNetworkInfo = connectivityManager.getActiveNetworkInfo()
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected()
+    }
+
     private fun getCurrentLocation() {
         if (!this::locationUtil.isInitialized) {
             locationUtil = object : LocationUtil() {
 
                 override fun onLocationChanged(location: Location?) {
                     super.onLocationChanged(location)
-                    if (location != null) {
+                    if (location != null && isNetworkAvailable()) {
                         Log.d(TAG, "onLocationChanged")
                         handleStates(GETTING_NEARBY_PLACES_STATE)
                         currentLoction = location
@@ -239,9 +267,10 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
                         mainViewModel.exploreNearbyPlaces("${location.latitude},${location.longitude}")
                         observeNearbyPlacesLiveData()
                         stopReceivingLocation()
+                    } else {
+                        handleStates(NO_INTERNET_STATE)
                     }
                 }
-
             }
         }
         locationUtil.switchOnGPSAndStartReceivingLocation(this@MainActivity)
