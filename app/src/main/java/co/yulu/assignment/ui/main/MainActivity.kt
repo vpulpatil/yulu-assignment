@@ -99,10 +99,17 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
     private fun checkLocationPermission() {
         if (PermissionUtil.isPermissionGranted(this,
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))) {
-            getCurrentLocation()
+            initMap()
         } else {
             requestLocationPermission()
         }
+    }
+
+    private fun initMap() {
+        handleStates(GETTING_LOCATION_STATE)
+        val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?
+        mapFragment!!.getMapAsync(this)
+        getCurrentLocation()
     }
 
     private fun requestLocationPermission() {
@@ -210,10 +217,6 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
     }
 
     private fun initView() {
-        handleStates(GETTING_LOCATION_STATE)
-        val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?
-        mapFragment!!.getMapAsync(this)
-
         val llm = LinearLayoutManager(this)
         nearbyPlacesRV.layoutManager = llm
         val itemDecor = DividerItemDecoration(this@MainActivity, llm.orientation);
@@ -384,7 +387,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.size > 1 && grantResults[0] == PERMISSION_GRANTED) {
                 //location permission is given
-                getCurrentLocation()
+                initMap()
             } else {
                 val showRationale = ActivityCompat.
                     shouldShowRequestPermissionRationale(this@MainActivity, permissions[0]);

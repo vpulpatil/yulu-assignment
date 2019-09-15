@@ -1,4 +1,4 @@
-package co.yulu.assignment.network.responsehandlers
+package co.yulu.assignment.network.responsehandlers.nearbyplaces
 
 import co.yulu.assignment.database.entity.Venue
 

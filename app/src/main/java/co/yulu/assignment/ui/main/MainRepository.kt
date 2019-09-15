@@ -1,6 +1,5 @@
 package co.yulu.assignment.ui.main
 
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import co.barfi.network.handler.Resource
@@ -9,12 +8,11 @@ import co.yulu.assignment.database.dao.VenueDao
 import co.yulu.assignment.network.apiservices.PlacesApiService
 import co.yulu.assignment.network.handler.ApiResponse
 import co.yulu.assignment.network.handler.NetworkBoundResource
-import co.yulu.assignment.network.responsehandlers.NearbyPlacesResult
+import co.yulu.assignment.network.responsehandlers.nearbyplaces.NearbyPlacesResult
 import co.yulu.assignment.database.entity.Venue
 import co.yulu.assignment.network.responsehandlers.suggestedplaces.Group
 import co.yulu.assignment.network.responsehandlers.suggestedplaces.SuggestedPlaces
 import co.yulu.assignment.util.creds.ClientCreds
-import com.google.gson.JsonObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
