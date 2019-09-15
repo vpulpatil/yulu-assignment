@@ -25,7 +25,7 @@ import co.yulu.assignment.R
 import co.yulu.assignment.application.base.BaseActivity
 import co.yulu.assignment.di.ViewModelProviderFactory
 import co.yulu.assignment.network.handler.Status
-import co.yulu.assignment.network.responsehandlers.Venue
+import co.yulu.assignment.database.entity.Venue
 import co.yulu.assignment.network.responsehandlers.suggestedplaces.Item
 import co.yulu.assignment.ui.main.adapter.NearbyPlacesAdapter
 import co.yulu.assignment.ui.main.adapter.QueryResultAdapter
@@ -176,9 +176,9 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         if (items.isNotEmpty()) {
             val latLngBoundsBuilder = LatLngBounds.builder()
             for (item in items) {
-                val latLng = LatLng(item.venue.location.lat, item.venue.location.lng)
+                val latLng = LatLng(item.venue.location!!.lat, item.venue.location!!.lng)
                 latLngBoundsBuilder.include(latLng)
-                createMarkerOnMap(latLng, item.venue.name)
+                createMarkerOnMap(latLng, item.venue.name!!)
             }
 
             //animate camera to accommodate all locations in the map
@@ -199,9 +199,9 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         if (items.isNotEmpty()) {
             val latLngBoundsBuilder = LatLngBounds.builder()
             for (item in items) {
-                val latLng = LatLng(item.location.lat, item.location.lng)
+                val latLng = LatLng(item.location!!.lat, item.location!!.lng)
                 latLngBoundsBuilder.include(latLng)
-                createMarkerOnMap(latLng, item.name)
+                createMarkerOnMap(latLng, item.name!!)
             }
 
             //animate camera to accommodate all locations in the map

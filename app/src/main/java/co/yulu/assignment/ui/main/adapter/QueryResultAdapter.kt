@@ -9,7 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import butterknife.BindView
 import butterknife.ButterKnife
 import co.yulu.assignment.R
-import co.yulu.assignment.network.responsehandlers.Venue
+import co.yulu.assignment.database.entity.Venue
 
 class QueryResultAdapter(private val list: List<Venue>, private val context: Context) : RecyclerView.Adapter<QueryResultAdapter.QueryResultViewHolder>() {
 
@@ -25,7 +25,7 @@ class QueryResultAdapter(private val list: List<Venue>, private val context: Con
 
     override fun onBindViewHolder(holder: QueryResultViewHolder, position: Int) {
         holder.placeNameTV.text = list[position].name
-        holder.beenHereCountTV.text = context.getString(R.string.count_been_here_text, list[position].beenHere.count.toString())
+        holder.beenHereCountTV.text = context.getString(R.string.count_been_here_text, list[position].beenHere?.count.toString())
     }
 
 

@@ -25,7 +25,7 @@ class NearbyPlacesAdapter(private val list: List<Item>, private val context: Con
 
     override fun onBindViewHolder(holder: NearbyPlacesViewHolder, position: Int) {
         holder.placeNameTV.text = list[position].venue.name
-        holder.beenHereCountTV.text = context.getString(R.string.count_been_here_text, list[position].venue.beenHere.count.toString())
+        holder.beenHereCountTV.text = context.getString(R.string.count_been_here_text, list[position].venue.beenHere?.count.toString())
     }
 
 
