@@ -4,4 +4,10 @@
     <string name="count_been_here_text">%1$s people have been here</string>
     <string name="search_text">Search</string>
     <string name="search_hint">Search Any Place Around</string>
+    <string name="loading_text">Loading</string>
+    <string name="getting_location_text">Getting Location…</string>
+    <string name="getting_nearby_places_text">Getting nearby places…</string>
+    <string name="error_occurred_text">Some Error Occurred…</string>
+    <string name="no_data_found_text">No Data Found</string>
+    <string name="searching_nearby_places_text">Searching for nearby places</string>
 </resources>

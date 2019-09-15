@@ -18,10 +18,10 @@ internal constructor() : BaseViewModel() {
     private var searchResultsLiveData = MutableLiveData<Resource<List<Venue>>>()
     private var nearbyPlacesLiveData = MutableLiveData<Resource<Group>>()
 
-    internal fun getLiveData() = searchResultsLiveData
+    internal fun getSearchResultsLiveData() = searchResultsLiveData
     internal fun getNearbyPlacesLiveData() = nearbyPlacesLiveData
 
-    internal fun getNearbyPlaces(latLngString: String, queryText: String) {
+    internal fun getSearchResults(latLngString: String, queryText: String) {
         mainRepository.getNearbyPlaces(latLngString, queryText).observeForever{
                 userResource -> searchResultsLiveData.postValue(userResource)
         }

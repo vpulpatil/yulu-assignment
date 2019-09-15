@@ -6,15 +6,18 @@ import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager.PERMISSION_GRANTED
-import android.inputmethodservice.InputMethodService
 import android.location.Location
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.view.Menu
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.widget.SearchView
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -47,6 +50,15 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
 
     private val TAG = "MainActivity"
 
+    val GETTING_LOCATION_STATE = 2001
+    val GETTING_NEARBY_PLACES_STATE = 2002
+    val NO_DATA_FOUND_STATE = 2003
+    val SHOW_DATA_STATE = 2004
+    val ERROR_OCCURRED_STATE = 2005
+    val SEARCHING_PLACES_STATE = 2006
+
+    val SETTING_REQUEST_CODE = 1234
+
     private val BENGALURU_LAT_LNG = LatLng(12.972227, 77.593961)
 
     private lateinit var currentLoction: Location
@@ -57,6 +69,15 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
     @BindView(R.id.nearbyPlacesRV)
     lateinit var nearbyPlacesRV: RecyclerView
 
+    @BindView(R.id.progressLayoutLL)
+    lateinit var progressLayoutLL: LinearLayout
+
+    @BindView(R.id.progressTextTV)
+    lateinit var progressTextTV: TextView
+
+    @BindView(R.id.errorTV)
+    lateinit var errorTV: TextView
+
     private val mainViewModel: MainViewModel
         get() {
             return ViewModelProviders.of(this, viewModelProviderFactory).get(MainViewModel::class.java)
@@ -66,17 +87,68 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
 
     private lateinit var locationUtil: LocationUtil
 
+    private var isObservingSearchResultsData = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         ButterKnife.bind(this)
+        initMap()
+        checkLocationPermission()
+    }
+
+    private fun checkLocationPermission() {
         if (PermissionUtil.isPermissionGranted(this,
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))) {
-            initMap()
+            getCurrentLocation()
         } else {
-            PermissionUtil.requestPermissions(this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-                LOCATION_PERMISSION_REQUEST_CODE)
+            requestLocationPermission()
+        }
+    }
+
+    private fun requestLocationPermission() {
+        PermissionUtil.requestPermissions(this,
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+            LOCATION_PERMISSION_REQUEST_CODE)
+    }
+
+    private fun handleStates(state: Int) {
+        when(state) {
+            GETTING_LOCATION_STATE -> {
+                progressLayoutLL.visibility = View.VISIBLE
+                progressTextTV.setText(R.string.getting_location_text)
+                nearbyPlacesRV.visibility = View.INVISIBLE
+                errorTV.visibility = View.GONE
+            }
+            GETTING_NEARBY_PLACES_STATE -> {
+                progressLayoutLL.visibility = View.VISIBLE
+                progressTextTV.setText(R.string.getting_nearby_places_text)
+                nearbyPlacesRV.visibility = View.INVISIBLE
+                errorTV.visibility = View.GONE
+            }
+            SEARCHING_PLACES_STATE -> {
+                progressLayoutLL.visibility = View.VISIBLE
+                progressTextTV.setText(R.string.searching_nearby_places_text)
+                nearbyPlacesRV.visibility = View.INVISIBLE
+                errorTV.visibility = View.GONE
+            }
+            NO_DATA_FOUND_STATE -> {
+                progressLayoutLL.visibility = View.GONE
+                nearbyPlacesRV.visibility = View.INVISIBLE
+                errorTV.visibility = View.VISIBLE
+                errorTV.setText(R.string.no_data_found_text)
+            }
+            SHOW_DATA_STATE -> {
+                progressLayoutLL.visibility = View.GONE
+                errorTV.visibility = View.GONE
+                nearbyPlacesRV.visibility = View.VISIBLE
+            }
+            ERROR_OCCURRED_STATE -> {
+                progressLayoutLL.visibility = View.GONE
+                nearbyPlacesRV.visibility = View.INVISIBLE
+                errorTV.visibility = View.VISIBLE
+                errorTV.setText(R.string.error_occurred_text)
+            }
         }
     }
 
@@ -94,25 +166,16 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         searchView.setOnQueryTextListener(object: SearchView.OnQueryTextListener{
 
             override fun onQueryTextSubmit(query: String?): Boolean {
+                Log.d(TAG, "onQueryTextSubmit")
                 mMap.clear()
                 hideKeyboard()
-                mainViewModel.getNearbyPlaces("${currentLoction.latitude},${currentLoction.longitude}", query ?: "")
-                mainViewModel.getLiveData().observe(this@MainActivity, Observer {
-                    when(it.status) {
-                        Status.LOADING -> {
-                        }
-                        Status.SUCCESS -> {
-                            populateQueryResultOnMaps(it.data!!)
-                            populateQueryDataToList(it.data)
-                        }
-                        Status.ERROR -> {
-                        }
-                    }
-                })
+                mainViewModel.getSearchResults("${currentLoction.latitude},${currentLoction.longitude}", query ?: "")
+                observeSearchResultsLiveData()
                 return true
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
+                Log.d(TAG, "onQueryTextChange")
                 return false
             }
 
@@ -121,21 +184,57 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         return super.onCreateOptionsMenu(menu);
     }
 
+    private fun observeSearchResultsLiveData() {
+        if (!isObservingSearchResultsData) {
+            isObservingSearchResultsData = true
+            mainViewModel.getSearchResultsLiveData()
+                .observe(this@MainActivity, Observer { filteredVenues ->
+                    when (filteredVenues.status) {
+                        Status.LOADING -> {
+                            handleStates(SEARCHING_PLACES_STATE)
+                        }
+                        Status.SUCCESS -> {
+                            if (filteredVenues.data!!.isNotEmpty()) {
+                                handleStates(SHOW_DATA_STATE)
+                                populateQueryResultOnMaps(filteredVenues.data)
+                                populateQueryDataToList(filteredVenues.data)
+                            } else {
+                                handleStates(NO_DATA_FOUND_STATE)
+                            }
+                        }
+                        Status.ERROR -> {
+                            handleStates(ERROR_OCCURRED_STATE)
+                        }
+                    }
+                })
+        }
+    }
+
     private fun initMap() {
+        handleStates(GETTING_LOCATION_STATE)
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?
         mapFragment!!.getMapAsync(this)
 
-        locationUtil = object: LocationUtil() {
+        getCurrentLocation()
+    }
 
-            override fun onLocationChanged(location: Location?) {
-                super.onLocationChanged(location)
-                currentLoction = location!!
-                //mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(location!!.latitude, location.longitude), 15.2f))
-                mainViewModel.exploreNearbyPlaces("${location.latitude},${location.longitude}")
-                observeLiveData()
-                stopReceivingLocation()
+    private fun getCurrentLocation() {
+        if (!this::locationUtil.isInitialized) {
+            locationUtil = object : LocationUtil() {
+
+                override fun onLocationChanged(location: Location?) {
+                    super.onLocationChanged(location)
+                    if (location != null) {
+                        handleStates(GETTING_NEARBY_PLACES_STATE)
+                        currentLoction = location
+                        //mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(location!!.latitude, location.longitude), 15.2f))
+                        mainViewModel.exploreNearbyPlaces("${location.latitude},${location.longitude}")
+                        observeNearbyPlacesLiveData()
+                        stopReceivingLocation()
+                    }
+                }
+
             }
-
         }
         locationUtil.switchOnGPSAndStartReceivingLocation(this@MainActivity)
     }
@@ -151,7 +250,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         imm.hideSoftInputFromWindow(view.windowToken, 0);
 }
 
-    private fun observeLiveData() {
+    private fun observeNearbyPlacesLiveData() {
         mainViewModel.getNearbyPlacesLiveData().observe(this, Observer {
             when(it.status) {
                 Status.LOADING -> {
@@ -159,6 +258,7 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
                 }
 
                 Status.SUCCESS -> {
+                    handleStates(SHOW_DATA_STATE)
                     Log.d(TAG, "success:${it.data}")
                     populateOnMaps(it.data!!.items)
                     populateDataToList(it.data.items)
@@ -268,10 +368,12 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == LocationUtil.REQUEST_LOCATION) {
             if (resultCode == Activity.RESULT_OK) {
-                initMap()
+                getCurrentLocation()
             } else {
                 UIUtil.showShortToast(this@MainActivity, "Location could not be traced, please try again.")
             }
+        } else if (requestCode == SETTING_REQUEST_CODE) {
+            checkLocationPermission()
         }
         super.onActivityResult(requestCode, resultCode, data)
     }
@@ -284,12 +386,31 @@ class MainActivity : BaseActivity(), OnMapReadyCallback {
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.size > 1 && grantResults[0] == PERMISSION_GRANTED) {
                 //location permission is given
-                initMap()
+                getCurrentLocation()
             } else {
-                UIUtil.showShortToast(this@MainActivity, "Location Permission is not granted, please allow it from Settings")
-                locationUtil.switchOnGPSAndStartReceivingLocation(this@MainActivity)
+                val showRationale = ActivityCompat.
+                    shouldShowRequestPermissionRationale(this@MainActivity, permissions[0]);
+                if (!showRationale) {
+                    // user also CHECKED "never ask again"
+                    // you can either enable some fall back,
+                    // disable features of your app
+                    // or open another dialog explaining
+                    // again the permission and directing to
+                    // the app setting
+                    UIUtil.showShortToast(this@MainActivity, "Location Permission is not granted, please allow it from Settings")
+                    redirectToAppSettings()
+                } else {
+                    requestLocationPermission()
+                }
             }
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+
+    private fun redirectToAppSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        val uri = Uri.fromParts("package", packageName, null)
+        intent.data = uri
+        startActivityForResult(intent, SETTING_REQUEST_CODE)
     }
 }
